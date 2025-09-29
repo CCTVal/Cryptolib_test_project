@@ -158,9 +158,9 @@ int main(void)
 	}
 	printf("CMOX initialized.\n");
 
-	// TestEncDec();
+	TestEncDec();
 	// TestHmac();
-	TestCryptolib();
+	// TestCryptolib();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -453,7 +453,7 @@ void TestCryptolib(void)
 		printf(", ");
 	}
 
-	uint8_t test_msg[] = "D";
+	uint8_t test_msg[] = "EEE3500360037003800350036003700380035003600370038003500360037003800L";
 	size_t test_msg_size = sizeof(test_msg);
 	uint8_t enc_msg[CRYPTOLIB_ENC_MSG_SIZE] = {0};
 	uint8_t dec_msg[CRYPTOLIB_MAX_MSG_SIZE] = {0};
@@ -515,12 +515,42 @@ void TestEncDec(void)
 	rx_buf_size = 0;
 	rx_buf_enc_size = 0;
 
-	uint8_t msg_to_enc[] = "EEE350036003700380035003600370038003500360037003800350036003700380098";
+	uint8_t msg_to_enc[] = "CCTVal\000\000\000\000\000\000\000\000\000";
 	memcpy(tx_buf, msg_to_enc, sizeof(msg_to_enc));
+
+	printf("AES-CBC key: ");
+	for (int i = 0; i < CRYPTOLIB_KEY_SIZE; i++) {
+		printf("%02X", aes_key[i]);
+		if (i == CRYPTOLIB_KEY_SIZE - 1) {
+			printf("\n");
+			break;
+		}
+		printf(", ");
+	}
+
+	printf("AES-CBC IV: ");
+	for (int i = 0; i < CRYPTOLIB_IV_SIZE; i++) {
+		printf("%02X", aes_iv[i]);
+		if (i == CRYPTOLIB_IV_SIZE - 1) {
+			printf("\n");
+			break;
+		}
+		printf(", ");
+	}
 
 	printf("msg_to_enc: ");
 	printf(msg_to_enc);
 	printf("\n");
+
+	printf("msg_to_enc (hex): \n");
+	for (int i = 0; i < sizeof(msg_to_enc); i++) {
+		printf("%02X", msg_to_enc[i]);
+		if (i == sizeof(msg_to_enc) - 1) {
+			printf("\n");
+			break;
+		}
+		printf(", ");
+	}
 
 	printf("tx_buf: ");
 	printf(tx_buf);
@@ -552,6 +582,16 @@ void TestEncDec(void)
 	printf("tx_buf_enc: ");
 	printf(tx_buf_enc);
 	printf("\n");
+
+	printf("tx_buf_enc (hex): \n");
+	for (int i = 0; i < tx_buf_enc_size; i++) {
+		printf("%02X", tx_buf_enc[i]);
+		if (i == tx_buf_enc_size - 1) {
+			printf("\n");
+			break;
+		}
+		printf(", ");
+	}
 
 	printf("tx_buf_enc_size: ");
 	printf("%d", tx_buf_enc_size);
@@ -620,6 +660,16 @@ void TestHmac(void)
 	rx_buf_size = 0;
 	rx_buf_enc_size = 0;
 
+	printf("HMAC key: ");
+	for (int i = 0; i < CRYPTOLIB_KEY_SIZE; i++) {
+		printf("%02X", hmac_key[i]);
+		if (i == CRYPTOLIB_KEY_SIZE - 1) {
+			printf("\n");
+			break;
+		}
+		printf(", ");
+	}
+
 	uint8_t msg_to_hmac[] = "CCTVal";
 	memcpy(tx_buf, msg_to_hmac, sizeof(msg_to_hmac));
 
@@ -656,15 +706,15 @@ void TestHmac(void)
 		printf("Error: Incorrect size of generated tag.\n");
 	}
 
-	printf("hmac_tag: ");
-	for (int i = 0; i < hmac_tag_size; i++) {
+	printf("HMAC tag: ");
+	for (int i = 0; i < CRYPTOLIB_TAG_SIZE; i++) {
 		printf("%02X", hmac_tag[i]);
-		printf(":%c", hmac_tag[i]);
-		if (i < hmac_tag_size - 1) {
-			printf(", ");
+		if (i == CRYPTOLIB_TAG_SIZE - 1) {
+			printf("\n");
+			break;
 		}
+		printf(", ");
 	}
-	printf("\n");
 
 	printf("hmac_tag_size: ");
 	printf("%d", hmac_tag_size);
