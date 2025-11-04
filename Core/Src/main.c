@@ -53,11 +53,13 @@
 
 /* Private variables ---------------------------------------------------------*/
 CRC_HandleTypeDef hcrc;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 uint8_t is_data_to_enc = 0; // Flag to start the encryption of data from tx_buf. 
 uint8_t is_data_to_dec = 0; // Flag to start the decryption of data from rx_buf_enc.
+uint8_t cadena[CRYPTOLIB_TEST_BUF_SIZE] = {0};
 
 // For AES:
 uint8_t aes_key[CRYPTOLIB_TEST_KEY_SIZE] =
@@ -67,6 +69,7 @@ uint8_t aes_key[CRYPTOLIB_TEST_KEY_SIZE] =
 uint8_t aes_iv[CRYPTOLIB_TEST_BLOCK_SIZE] =
 {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+	//0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 // For HMAC:
@@ -74,6 +77,10 @@ uint8_t hmac_key[CRYPTOLIB_TEST_KEY_SIZE] = // Minimal size of 16 bytes for SHA-
 {
 	0xcf, 0xd4, 0xa4, 0x49, 0x10, 0xc9, 0xe5, 0x67, 0x50, 0x7a, 0xbb, 0x6c, 0xed, 0xe4, 0xfe, 0x60
 };
+uint8_t N_msg[] = "111000";
+uint8_t T_msg[] = "EEE3500360037003800350036003700380035003600370038003500360037003800LH";
+uint8_t dec_msg[CRYPTOLIB_MAX_MSG_SIZE] = {0};
+uint8_t should_use_T = 0;
 
 // Buffers without encryption.
 uint8_t tx_buf[CRYPTOLIB_TEST_BUF_SIZE] = {0};
@@ -89,7 +96,7 @@ uint8_t hmac_tag[CRYPTOLIB_TEST_HMAC_SIZE] = {0}; // I assume the tag will be tr
 
 size_t tx_buf_size = 0;     // N° of bytes in tx_buf containing the msg to send.
 size_t tx_buf_enc_size = 0; // N° of bytes in tx_buf containing the encrypted msg to send.
-size_t rx_buf_enc_size = 0; // N° of bytes in rx_buf_enc containing the received msg to decrypt.
+size_t rx_buf_enc_size = 36; // N° of bytes in rx_buf_enc containing the received msg to decrypt.
 size_t rx_buf_size = 0;     // N° of bytes in rx_buf containing the decrypted msg.
 size_t hmac_tag_size = 0;   // Size in bytes of the generated tag.
 /* USER CODE END PV */
@@ -119,6 +126,7 @@ void TestHmac(void);
   */
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
 
 	/* Enable the CPU Cache */
@@ -146,8 +154,8 @@ int main(void)
   MX_USART2_UART_Init();
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
-	printf("UART initialized.\n");
-	printf("CRC initialized.\n");
+	//printf("UART initialized.\n");
+	//printf("CRC initialized.\n");
 
 	cmox_init_arg_t init_target = {CMOX_INIT_TARGET_F4, NULL};
 
@@ -156,11 +164,21 @@ int main(void)
 	{
 		Error_Handler();
 	}
-	printf("CMOX initialized.\n");
+	//printf("CMOX initialized.\n");
 
-	TestEncDec();
+	// TestEncDec();
 	// TestHmac();
-	// TestCryptolib();
+	TestCryptolib();
+	HAL_UART_Receive_IT(&huart2, cadena, 36);
+
+	// Calculate checksum
+	unsigned checksum = 0;
+	for (int i = 3; i < 3 + 4 * 16; i++) {
+	    checksum += T_msg[i];
+	}
+	int onChar = 3+64;
+	T_msg[onChar++] = checksum % 256;
+	T_msg[onChar++] = checksum / 256;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -177,14 +195,16 @@ int main(void)
 
 	if (is_data_to_dec) {
 		// TODO: Verify MAC before decryption.
-		if (DecryptData() == CRYPTOLIB_TEST_ERROR) {
-			Error_Handler();
-		}
-		is_data_to_dec = 0;
-	}
-	/* USER CODE END WHILE */
+		TestCryptolibDecrypt();
 
-	/* USER CODE BEGIN 3 */
+		should_use_T = (dec_msg[0] == 'T');
+		TestCryptolib();
+		is_data_to_dec = 0;
+		HAL_UART_Receive_IT(&huart2, cadena, 36);
+	}
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -217,13 +237,13 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLQ = 7;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
-	Error_Handler();
+    Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-							  |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
@@ -231,7 +251,7 @@ void SystemClock_Config(void)
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
-	Error_Handler();
+    Error_Handler();
   }
 }
 
@@ -253,7 +273,7 @@ static void MX_CRC_Init(void)
   hcrc.Instance = CRC;
   if (HAL_CRC_Init(&hcrc) != HAL_OK)
   {
-	Error_Handler();
+    Error_Handler();
   }
   /* USER CODE BEGIN CRC_Init 2 */
 
@@ -286,7 +306,7 @@ static void MX_USART2_UART_Init(void)
   huart2.Init.OverSampling = UART_OVERSAMPLING_16;
   if (HAL_UART_Init(&huart2) != HAL_OK)
   {
-	Error_Handler();
+    Error_Handler();
   }
   /* USER CODE BEGIN USART2_Init 2 */
 
@@ -388,14 +408,17 @@ uint8_t EncryptData()
 uint8_t DecryptData(void)
 {
 	cmox_cipher_retval_t retval;
+
+	for(int i = 0; i < CRYPTOLIB_TEST_BUF_SIZE; i++) {
+		rx_buf[i] = 0;
+	}
 	retval = cmox_cipher_decrypt(CMOX_AES_CBC_DEC_ALGO,			/* Use AES CBC algorithm */
-								rx_buf_enc, rx_buf_enc_size,    /* Ciphertext to decrypt */
+								cadena + 20, 16,    /* Ciphertext to decrypt */
 								aes_key, sizeof(aes_key),       /* AES key to use */
 								aes_iv, sizeof(aes_iv),         /* Initialization vector */
 								rx_buf, &rx_buf_size);   		/* Data buffer to receive generated plaintext */
 
 	// TODO: Clear buffers after use.
-	
 	/* Verify API returned value */
 	if (retval != CMOX_CIPHER_SUCCESS) {
 		return CRYPTOLIB_TEST_ERROR;
@@ -414,7 +437,7 @@ void TestCryptolib(void)
 	Cryptolib_t crypto;
 
 	if (Cryptolib_Init(&crypto) == CRYPTOLIB_NO_ERROR) {
-		printf("Cryptolib struct initialized.\n");
+		//printf("Cryptolib struct initialized.\n");
 	}
 
 	Cryptolib_key_t aes_key_test = 
@@ -427,74 +450,69 @@ void TestCryptolib(void)
 		0xcf, 0xd4, 0xa4, 0x49, 0x10, 0xc9, 0xe5, 0x67, 0x50, 0x7a, 0xbb, 0x6c, 0xed, 0xe4, 0xfe, 0x60
 	};
 
-	uint8_t hmac_key_test2[17] = {0};
-
 	if (Cryptolib_SetKeys(&crypto, aes_key_test, hmac_key_test) == CRYPTOLIB_NO_ERROR) {
-		printf("Cryptolib keys set.\n");
+		//printf("Cryptolib keys set.\n");
 	}
 
-	printf("Stored keys: \n");
-	printf("AES: ");
-	for (int i = 0; i < CRYPTOLIB_KEY_SIZE; i++) {
-		printf("%02X", (crypto._aes_key)[i]);
-		if (i == CRYPTOLIB_KEY_SIZE - 1) {
-			printf("\n");
-			break;
-		}
-		printf(", ");
-	}
-	printf("HMAC: ");
-	for (int i = 0; i < CRYPTOLIB_KEY_SIZE; i++) {
-		printf("%02X", (crypto._hmac_key)[i]);
-		if (i == CRYPTOLIB_KEY_SIZE - 1) {
-			printf("\n");
-			break;
-		}
-		printf(", ");
+
+	uint8_t *test_msg;
+	size_t test_msg_size;
+	if(should_use_T) {
+		test_msg = T_msg;
+		test_msg_size = sizeof(T_msg) - 1;
+	} else {
+		test_msg = N_msg;
+		test_msg_size = sizeof(N_msg) - 1;
 	}
 
-	uint8_t test_msg[] = "EEE3500360037003800350036003700380035003600370038003500360037003800L";
-	size_t test_msg_size = sizeof(test_msg);
 	uint8_t enc_msg[CRYPTOLIB_ENC_MSG_SIZE] = {0};
 	uint8_t dec_msg[CRYPTOLIB_MAX_MSG_SIZE] = {0};
-	
-	printf("Msg to encrypt: ");
-	printf(test_msg);
-	printf("\n");
-
-	printf("Starting encryption...\n");
 
 	if (Cryptolib_Encrypt(&crypto, test_msg, test_msg_size, enc_msg) == CRYPTOLIB_NO_ERROR) {
-		printf("Encryption successful.\n");
+		//printf("Encryption successful.\n");
 	} else {
 		printf("Encryption failed.\n");
 		return;
 	}
 
-	printf("Encrypted msg:\n");
 	for (int i = 0; i < CRYPTOLIB_ENC_MSG_SIZE; i++) {
 		printf("%02X", enc_msg[i]);
+		HAL_UART_Transmit(&huart2, (uint8_t *) (enc_msg + i), 1, 100);
 		if (i == CRYPTOLIB_ENC_MSG_SIZE - 1) {
-			printf("\n");
 			break;
 		}
-		printf(", ");
 	}
-
-	printf("Starting decryption...\n");
-
+/*
 	uint8_t decryption = Cryptolib_Decrypt(&crypto, enc_msg, dec_msg);
 	
 	if (decryption == CRYPTOLIB_NO_ERROR) {
-		printf("Decryption successful.\n");
+		//printf("Decryption successful.\n");
+	} else {
+		printf("Decryption failed. Error code: %d\n", decryption);
+		return;
+	}*/
+}
+
+void TestCryptolibDecrypt(void)
+{
+	Cryptolib_t crypto;
+
+	if (Cryptolib_Init(&crypto) == CRYPTOLIB_NO_ERROR) {
+		//printf("Cryptolib struct initialized.\n");
+	}
+
+	if (Cryptolib_SetKeys(&crypto, aes_key, hmac_key) == CRYPTOLIB_NO_ERROR) {
+		//printf("Cryptolib keys set.\n");
+	}
+
+	uint8_t decryption = Cryptolib_Decrypt(&crypto, cadena, dec_msg);
+
+	if (decryption == CRYPTOLIB_NO_ERROR) {
+		//printf("Decryption successful.\n");
 	} else {
 		printf("Decryption failed. Error code: %d\n", decryption);
 		return;
 	}
-
-	printf("Decrypted msg: ");
-	printf(dec_msg);
-	printf("\n");
 }
 
 void TestEncDec(void) 
@@ -606,7 +624,7 @@ void TestEncDec(void)
 
 	printf("rx_buf_enc_size: ");
 	printf("%d", rx_buf_enc_size);
-	printf("\n");	
+	printf("\n");
 
 	printf("Decrypting rx_buf_enc...\n");
 
@@ -657,8 +675,8 @@ void TestHmac(void)
 
 	tx_buf_size = 0;
 	tx_buf_enc_size = 0;
-	rx_buf_size = 0;
-	rx_buf_enc_size = 0;
+	rx_buf_size = 36;
+	rx_buf_enc_size = 36;
 
 	printf("HMAC key: ");
 	for (int i = 0; i < CRYPTOLIB_KEY_SIZE; i++) {
@@ -734,7 +752,7 @@ void TestHmac(void)
 
 	printf("rx_buf_enc_size: ");
 	printf("%d", rx_buf_enc_size);
-	printf("\n");	
+	printf("\n");
 
 	uint8_t hmac_tag_extracted[sizeof(hmac_tag)] = {0};
 
@@ -772,6 +790,16 @@ void TestHmac(void)
 
 	printf("HMAC authentication verification test successful.\n");
 	printf("Test completed.\n");
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	/* Prevent unused argument(s) compilation warning */
+	if(huart->Instance != USART2)
+	{
+		return;
+	}
+	is_data_to_dec = 1;
 }
 
 /**

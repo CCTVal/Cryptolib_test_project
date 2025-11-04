@@ -60,8 +60,8 @@ all: main-build
 main-build: Test_STM32_CryptoLib.elf secondary-outputs
 
 # Tool invocations
-Test_STM32_CryptoLib.elf Test_STM32_CryptoLib.map: $(OBJS) $(USER_OBJS) C:\Users\Victor\ Pizarro\OneDrive\ -\ Universidad\ Técnica\ Federico\ Santa\ María\VP\Projects\Labthermics\STM32\ Software\Test_STM32_CryptoLib\STM32F401RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Test_STM32_CryptoLib.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Victor Pizarro\OneDrive - Universidad Técnica Federico Santa María\VP\Projects\Labthermics\STM32 Software\Test_STM32_CryptoLib\STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Test_STM32_CryptoLib.map" -Wl,--gc-sections -static -L"C:\Users\Victor Pizarro\OneDrive - Universidad Técnica Federico Santa María\VP\Projects\Labthermics\STM32 Software\Test_STM32_CryptoLib\Middlewares\ST\STM32_Cryptographic\lib" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Test_STM32_CryptoLib.elf Test_STM32_CryptoLib.map: $(OBJS) $(USER_OBJS) C:\Users\vsaon\OneDrive\Documents\LabThermics\cybersecurity\cryptotest-sw-lt100\original_Test_STM32_CryptoLib\Test_STM32_CryptoLib\STM32F401RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Test_STM32_CryptoLib.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\vsaon\OneDrive\Documents\LabThermics\cybersecurity\cryptotest-sw-lt100\original_Test_STM32_CryptoLib\Test_STM32_CryptoLib\STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Test_STM32_CryptoLib.map" -Wl,--gc-sections -static -L"C:\Users\vsaon\OneDrive\Documents\LabThermics\cybersecurity\cryptotest-sw-lt100\original_Test_STM32_CryptoLib\Test_STM32_CryptoLib\Middlewares\ST\STM32_Cryptographic\lib" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

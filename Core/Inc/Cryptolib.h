@@ -24,7 +24,8 @@ extern "C" {
 #define CRYPTOLIB_KEY_SIZE 		16 	// Bytes
 #define CRYPTOLIB_IV_SIZE		16	// Bytes (size of the AES block)
 #define CRYPTOLIB_TAG_SIZE 		4	// Bytes
-#define CRYPTOLIB_MAX_MSG_SIZE 	69	// Bytes (max expected plaintext size)
+#define CRYPTOLIB_MAX_MSG_SIZE 	80	// Bytes (max expected plaintext size for sent messages)
+#define CRYPTOLIB_RCV_MSG_SIZE 	16	// Bytes (max expected plaintext size for received messages)
 #define CRYPTOLIB_ENC_MSG_SIZE	CRYPTOLIB_IV_SIZE + CRYPTOLIB_TAG_SIZE + CRYPTOLIB_MAX_MSG_SIZE
 									// Encoded msg: |IV|HMAC Tag|Ciphertext|
 #define CRYPTOLIB_AES_ENC_ALGO	CMOX_AESFAST_CBC_ENC_ALGO
@@ -194,9 +195,9 @@ uint8_t Cryptolib_Decrypt(Cryptolib_t *crypto_h, uint8_t *enc_msg, uint8_t *msg)
 #endif
 
 	uint8_t hmac_tag[CRYPTOLIB_TAG_SIZE] = {0};
-	uint8_t ciphertext[CRYPTOLIB_MAX_MSG_SIZE] = {0};
+	uint8_t ciphertext[CRYPTOLIB_RCV_MSG_SIZE] = {0};
 	memcpy(hmac_tag, enc_msg + CRYPTOLIB_IV_SIZE, CRYPTOLIB_TAG_SIZE);
-	memcpy(ciphertext, enc_msg + CRYPTOLIB_IV_SIZE + CRYPTOLIB_TAG_SIZE, CRYPTOLIB_MAX_MSG_SIZE);
+	memcpy(ciphertext, enc_msg + CRYPTOLIB_IV_SIZE + CRYPTOLIB_TAG_SIZE, CRYPTOLIB_RCV_MSG_SIZE);
 
 #if CRYPTOLIB_DEBUG_MODE
 	printf("HMAC tag extracted:\n");
@@ -210,7 +211,7 @@ uint8_t Cryptolib_Decrypt(Cryptolib_t *crypto_h, uint8_t *enc_msg, uint8_t *msg)
 	}
 
 	printf("Ciphertext extracted:\n");
-	for (int i = 0; i < CRYPTOLIB_MAX_MSG_SIZE; i++) {
+	for (int i = 0; i < CRYPTOLIB_RCV_MSG_SIZE; i++) {
 		printf("%02X", ciphertext[i]);
 		if (i == CRYPTOLIB_MAX_MSG_SIZE - 1) {
 			printf("\n");
@@ -223,7 +224,7 @@ uint8_t Cryptolib_Decrypt(Cryptolib_t *crypto_h, uint8_t *enc_msg, uint8_t *msg)
 	cmox_mac_retval_t retval_m;
 	
 	retval_m = cmox_mac_verify(CRYPTOLIB_MAC_ALGO,
-							ciphertext, CRYPTOLIB_MAX_MSG_SIZE,		/* Message to verify */
+							ciphertext, CRYPTOLIB_RCV_MSG_SIZE,		/* Message to verify */
 							crypto_h->_hmac_key, CRYPTOLIB_KEY_SIZE,/* HMAC Key to use */
 							NULL, 0,              					/* Custom data */
 							hmac_tag,         						/* Authentication tag */
@@ -236,12 +237,12 @@ uint8_t Cryptolib_Decrypt(Cryptolib_t *crypto_h, uint8_t *enc_msg, uint8_t *msg)
 	uint8_t iv[CRYPTOLIB_IV_SIZE] = {0};
 	memcpy(iv, enc_msg, CRYPTOLIB_IV_SIZE);
 
-	memset(msg, 0, CRYPTOLIB_MAX_MSG_SIZE);
+	memset(msg, 0, CRYPTOLIB_RCV_MSG_SIZE);
 	size_t msg_size = 0;
 
 	cmox_cipher_retval_t retval_c;
 	retval_c = cmox_cipher_decrypt(CRYPTOLIB_AES_DEC_ALGO,				/* Decryption algorithm */
-								ciphertext, CRYPTOLIB_MAX_MSG_SIZE, 	/* Ciphertext to decrypt */
+								ciphertext, CRYPTOLIB_RCV_MSG_SIZE, 	/* Ciphertext to decrypt */
 								crypto_h->_aes_key, CRYPTOLIB_KEY_SIZE,	/* AES key to use */
 								iv, CRYPTOLIB_IV_SIZE,         			/* Initialization vector */
 								msg, &msg_size);   						/* Data buffer to receive generated plaintext */
@@ -250,7 +251,7 @@ uint8_t Cryptolib_Decrypt(Cryptolib_t *crypto_h, uint8_t *enc_msg, uint8_t *msg)
 		return CRYPTOLIB_DECRYPTION_ERROR;
 	}
 
-	if (msg_size != CRYPTOLIB_MAX_MSG_SIZE) {
+	if (msg_size != CRYPTOLIB_RCV_MSG_SIZE) {
 		return CRYPTOLIB_DECRYPTION_ERROR;
 	}
 
